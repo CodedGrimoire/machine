@@ -1,5 +1,5 @@
 from pathlib import Path
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageFilter
 import random
 import matplotlib.pyplot as plt
 
@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 BASE_DIR = Path("Sugarcane Leaf Image Dataset")
 
 INPUT_FOLDERS = {
+    "Diseases": BASE_DIR / "Diseases",
+    "Dried Leaves": BASE_DIR / "Dried Leaves",
     "Healthy Leaves": BASE_DIR / "Healthy Leaves",
 }
 
@@ -16,15 +18,14 @@ OUTPUT_BASE = Path("Augmented Sugarcane Leaf Dataset")
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
-# Choose one value per quality for preview clarity
-BRIGHTNESS_FACTOR = 1.2
-CONTRAST_FACTOR = 1.2
-SATURATION_FACTOR = 1.2
-SHARPNESS_FACTOR = 1.5
-BLACK_POINT_SHIFT = -20
+BRIGHTNESS_FACTOR = 1.8
+CONTRAST_FACTOR = 2
+SATURATION_FACTOR = 1.8
+SHARPNESS_FACTOR = 2
+BLUR_RADIUS = 1.5
+BLACK_POINT_SHIFT = -30
 
-# How many original images to preview
-NUM_PREVIEW_IMAGES = 4
+NUM_PREVIEW_IMAGES = 2
 
 
 # =========================
@@ -56,6 +57,10 @@ def apply_black_point_shift(img: Image.Image, shift: int) -> Image.Image:
     return img.point(lambda p: max(0, min(255, p + shift)))
 
 
+def apply_gaussian_blur(img: Image.Image, radius: float) -> Image.Image:
+    return img.filter(ImageFilter.GaussianBlur(radius))
+
+
 def save_image(img: Image.Image, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, quality=95)
@@ -71,48 +76,46 @@ def augment_and_save(image_path: Path, output_dir: Path) -> int:
         img = ensure_rgb(img)
         stem = image_path.stem
 
-        # Original
         save_image(img, output_dir / f"{stem}_original.jpg")
         saved_count += 1
 
-        # Brightness
         bright = apply_brightness(img, BRIGHTNESS_FACTOR)
         save_image(bright, output_dir / f"{stem}_brightness.jpg")
         saved_count += 1
 
-        # Contrast
         contrast = apply_contrast(img, CONTRAST_FACTOR)
         save_image(contrast, output_dir / f"{stem}_contrast.jpg")
         saved_count += 1
 
-        # Saturation
         saturation = apply_saturation(img, SATURATION_FACTOR)
         save_image(saturation, output_dir / f"{stem}_saturation.jpg")
         saved_count += 1
 
-        # Sharpness
         sharp = apply_sharpness(img, SHARPNESS_FACTOR)
         save_image(sharp, output_dir / f"{stem}_sharpness.jpg")
         saved_count += 1
 
-        # Black point / shadow shift
         blackpoint = apply_black_point_shift(img, BLACK_POINT_SHIFT)
         save_image(blackpoint, output_dir / f"{stem}_blackpoint.jpg")
+        saved_count += 1
+
+        blur = apply_gaussian_blur(img, BLUR_RADIUS)
+        save_image(blur, output_dir / f"{stem}_gaussianblur.jpg")
         saved_count += 1
 
     return saved_count
 
 
+# =========================
+# PROCESS FOLDER RECURSIVELY
+# =========================
 def process_folder(class_name: str, input_dir: Path, output_base: Path) -> None:
     if not input_dir.exists():
         print(f"[WARNING] Folder not found: {input_dir}")
         return
 
-    output_dir = output_base / class_name
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     image_files = [
-        f for f in input_dir.iterdir()
+        f for f in input_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
     ]
 
@@ -124,23 +127,28 @@ def process_folder(class_name: str, input_dir: Path, output_base: Path) -> None:
 
     for image_file in image_files:
         try:
+            relative_parent = image_file.parent.relative_to(input_dir)
+            output_dir = output_base / class_name / relative_parent
+
             count = augment_and_save(image_file, output_dir)
             total_saved += count
-            print(f"[DONE] {class_name} -> {image_file.name} | saved {count} files")
+
+            print(f"[DONE] {class_name} -> {image_file.relative_to(input_dir)} | saved {count} files")
+
         except Exception as e:
-            print(f"[ERROR] Could not process {image_file.name}: {e}")
+            print(f"[ERROR] Could not process {image_file}: {e}")
 
-    print(f"\n[SUMMARY] {class_name}: {total_saved} files saved in {output_dir}\n")
+    print(f"\n[SUMMARY] {class_name}: {total_saved} files saved under {output_base / class_name}\n")
 
 
 # =========================
-# PREVIEW: SIDE BY SIDE FOR EACH QUALITY
+# PREVIEW
 # =========================
-def show_side_by_side_per_quality(output_dir: Path, num_images: int = 4) -> None:
-    original_files = list(output_dir.glob("*_original.jpg"))
+def show_side_by_side_per_quality(output_dir: Path, class_name: str, num_images: int = 2) -> None:
+    original_files = list(output_dir.rglob("*_original.jpg"))
 
     if not original_files:
-        print("[INFO] No original images found for preview.")
+        print(f"[INFO] No original images found for preview in {class_name}.")
         return
 
     chosen_originals = random.sample(original_files, min(num_images, len(original_files)))
@@ -152,6 +160,7 @@ def show_side_by_side_per_quality(output_dir: Path, num_images: int = 4) -> None
         ("Saturation", "_saturation.jpg"),
         ("Sharpness", "_sharpness.jpg"),
         ("Black Point", "_blackpoint.jpg"),
+        ("Gaussian Blur", "_gaussianblur.jpg"),
     ]
 
     fig, axes = plt.subplots(
@@ -163,11 +172,14 @@ def show_side_by_side_per_quality(output_dir: Path, num_images: int = 4) -> None
     if len(chosen_originals) == 1:
         axes = [axes]
 
+    fig.suptitle(class_name, fontsize=14)
+
     for row, original_path in enumerate(chosen_originals):
         stem = original_path.name.replace("_original.jpg", "")
+        folder = original_path.parent
 
         for col, (title, suffix) in enumerate(columns):
-            img_path = output_dir / f"{stem}{suffix}"
+            img_path = folder / f"{stem}{suffix}"
             ax = axes[row][col]
 
             if img_path.exists():
@@ -176,8 +188,10 @@ def show_side_by_side_per_quality(output_dir: Path, num_images: int = 4) -> None
                     ax.imshow(img)
             else:
                 ax.text(0.5, 0.5, "Not found", ha="center", va="center")
+
             if row == 0:
                 ax.set_title(title, fontsize=10)
+
             ax.axis("off")
 
     plt.tight_layout()
@@ -196,10 +210,12 @@ def main():
     print("All done.")
     print(f"Augmented dataset saved in: {OUTPUT_BASE.resolve()}")
 
-    show_side_by_side_per_quality(
-        OUTPUT_BASE / "Healthy Leaves",
-        num_images=NUM_PREVIEW_IMAGES
-    )
+    for class_name in INPUT_FOLDERS:
+        show_side_by_side_per_quality(
+            OUTPUT_BASE / class_name,
+            class_name,
+            num_images=NUM_PREVIEW_IMAGES
+        )
 
 
 if __name__ == "__main__":
