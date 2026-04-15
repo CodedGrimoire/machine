@@ -6,22 +6,21 @@ import pandas as pd
 
 def load_diabetes_data():
     """Load the Pima Indians Diabetes dataset as a pandas DataFrame."""
-    candidate_paths = [
-        "diabetes.csv",
-        "pima-indians-diabetes.csv",
-        "pima_diabetes.csv",
+    url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+    columns = [
+        "Pregnancies",
+        "Glucose",
+        "BloodPressure",
+        "SkinThickness",
+        "Insulin",
+        "BMI",
+        "DiabetesPedigreeFunction",
+        "Age",
+        "Outcome",
     ]
-
-    for path in candidate_paths:
-        try:
-            return pd.read_csv(path)
-        except FileNotFoundError:
-            continue
-
-    raise FileNotFoundError(
-        "Dataset file not found. Place one of these files in the project root: "
-        "diabetes.csv, pima-indians-diabetes.csv, or pima_diabetes.csv"
-    )
+    data = pd.read_csv(url, header=None, names=columns)
+    print(data.head())
+    return data
 
 
 def split_features_target(data):
