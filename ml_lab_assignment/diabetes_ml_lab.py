@@ -1,5 +1,8 @@
 """Main script for binary classification ML lab on diabetes dataset."""
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 
 from data_utils import (
@@ -38,6 +41,48 @@ def _print_comparison_table(summary_metrics):
             f"{metrics['recall']:>10.4f}"
             f"{metrics['f1_score']:>10.4f}"
         )
+
+
+def _plot_comparison_chart(summary_metrics):
+    """Plot grouped bar chart for final model metric comparison."""
+    model_names = list(summary_metrics.keys())
+    accuracy_list = [summary_metrics[name]["accuracy"] for name in model_names]
+    precision_list = [summary_metrics[name]["precision"] for name in model_names]
+    recall_list = [summary_metrics[name]["recall"] for name in model_names]
+    f1_list = [summary_metrics[name]["f1_score"] for name in model_names]
+
+    x = np.arange(len(model_names))
+    width = 0.2
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars_acc = ax.bar(x - 1.5 * width, accuracy_list, width, label="Accuracy")
+    bars_pre = ax.bar(x - 0.5 * width, precision_list, width, label="Precision")
+    bars_rec = ax.bar(x + 0.5 * width, recall_list, width, label="Recall")
+    bars_f1 = ax.bar(x + 1.5 * width, f1_list, width, label="F1")
+
+    ax.set_title("Model Performance Comparison")
+    ax.set_xlabel("Models")
+    ax.set_ylabel("Score")
+    ax.set_xticks(x)
+    ax.set_xticklabels(model_names)
+    ax.legend()
+    ax.grid(axis="y", alpha=0.3)
+
+    for bar_group in (bars_acc, bars_pre, bars_rec, bars_f1):
+        for bar in bar_group:
+            height = bar.get_height()
+            ax.annotate(
+                f"{height:.2f}",
+                xy=(bar.get_x() + bar.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+    fig.tight_layout()
+    plt.show()
 
 
 def run_all_models(
@@ -112,6 +157,7 @@ def run_all_models(
 
     print("\n[4/4] Building final comparison summary...")
     _print_comparison_table(summary_metrics)
+    _plot_comparison_chart(summary_metrics)
 
     return {
         "summary_metrics": summary_metrics,
