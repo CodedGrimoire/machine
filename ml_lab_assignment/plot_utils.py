@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 def plot_single_curve(values, xlabel, ylabel, title):
     """Plot a single line curve."""
     plt.figure(figsize=(8, 5))
-    plt.plot(values)
+    plt.plot(values, label=ylabel)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()

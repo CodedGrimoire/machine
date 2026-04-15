@@ -9,13 +9,36 @@ from logistic_regression_model import LogisticRegressionFromScratch
 
 
 def _print_metrics(title, metrics):
-    print(f"\n{title} - Validation Metrics")
+    print("\n" + "=" * 76)
+    print(f"{title} - Validation Results")
+    print("=" * 76)
     print("Confusion Matrix:")
     print(metrics["confusion_matrix"])
     print(f"Accuracy : {metrics['accuracy']:.4f}")
     print(f"Precision: {metrics['precision']:.4f}")
     print(f"Recall   : {metrics['recall']:.4f}")
     print(f"F1 Score : {metrics['f1_score']:.4f}")
+
+
+def _plot_history(train_values, val_values, xlabel, ylabel, title, train_label, val_label):
+    """Plot train-only or train-vs-validation curves."""
+    if val_values:
+        plot_two_curves(
+            train_values,
+            val_values,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            title=title,
+            label1=train_label,
+            label2=val_label,
+        )
+    else:
+        plot_single_curve(
+            train_values,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            title=f"{title} (Train)",
+        )
 
 
 def run_perceptron_experiment(
@@ -25,12 +48,13 @@ def run_perceptron_experiment(
     y_val,
     learning_rate,
     n_iters,
+    random_state=42,
 ):
     """Train, evaluate, print metrics, and plot Perceptron misclassification curves."""
     model = PerceptronFromScratch(
         learning_rate=learning_rate,
         n_iters=n_iters,
-        random_state=42,
+        random_state=random_state,
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
@@ -38,23 +62,15 @@ def run_perceptron_experiment(
     metrics = evaluate_classification(y_val, y_val_pred)
     _print_metrics("Perceptron (From Scratch)", metrics)
 
-    if model.val_misclassification_history_:
-        plot_two_curves(
-            model.train_misclassification_history_,
-            model.val_misclassification_history_,
-            xlabel="Iteration",
-            ylabel="Misclassification Rate",
-            title="Perceptron Misclassification vs Iteration",
-            label1="Train Misclassification",
-            label2="Validation Misclassification",
-        )
-    else:
-        plot_single_curve(
-            model.train_misclassification_history_,
-            xlabel="Iteration",
-            ylabel="Misclassification Rate",
-            title="Perceptron Train Misclassification vs Iteration",
-        )
+    _plot_history(
+        train_values=model.train_misclassification_history_,
+        val_values=model.val_misclassification_history_,
+        xlabel="Iteration",
+        ylabel="Misclassification Rate",
+        title="Perceptron Misclassification vs Iteration",
+        train_label="Train Misclassification",
+        val_label="Validation Misclassification",
+    )
 
     return model, metrics
 
@@ -66,12 +82,13 @@ def run_logistic_regression_experiment(
     y_val,
     learning_rate,
     n_iters,
+    random_state=42,
 ):
     """Train, evaluate, print metrics, and plot Logistic Regression curves."""
     model = LogisticRegressionFromScratch(
         learning_rate=learning_rate,
         n_iters=n_iters,
-        random_state=42,
+        random_state=random_state,
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
@@ -79,41 +96,25 @@ def run_logistic_regression_experiment(
     metrics = evaluate_classification(y_val, y_val_pred)
     _print_metrics("Logistic Regression (From Scratch)", metrics)
 
-    if model.val_misclassification_history_:
-        plot_two_curves(
-            model.train_misclassification_history_,
-            model.val_misclassification_history_,
-            xlabel="Iteration",
-            ylabel="Misclassification Rate",
-            title="Logistic Regression Misclassification vs Iteration",
-            label1="Train Misclassification",
-            label2="Validation Misclassification",
-        )
-    else:
-        plot_single_curve(
-            model.train_misclassification_history_,
-            xlabel="Iteration",
-            ylabel="Misclassification Rate",
-            title="Logistic Regression Train Misclassification vs Iteration",
-        )
+    _plot_history(
+        train_values=model.train_misclassification_history_,
+        val_values=model.val_misclassification_history_,
+        xlabel="Iteration",
+        ylabel="Misclassification Rate",
+        title="Logistic Regression Misclassification vs Iteration",
+        train_label="Train Misclassification",
+        val_label="Validation Misclassification",
+    )
 
-    if model.val_log_loss_history_:
-        plot_two_curves(
-            model.train_log_loss_history_,
-            model.val_log_loss_history_,
-            xlabel="Iteration",
-            ylabel="Log Loss",
-            title="Logistic Regression Log Loss vs Iteration",
-            label1="Train Log Loss",
-            label2="Validation Log Loss",
-        )
-    else:
-        plot_single_curve(
-            model.train_log_loss_history_,
-            xlabel="Iteration",
-            ylabel="Log Loss",
-            title="Logistic Regression Train Log Loss vs Iteration",
-        )
+    _plot_history(
+        train_values=model.train_log_loss_history_,
+        val_values=model.val_log_loss_history_,
+        xlabel="Iteration",
+        ylabel="Log Loss",
+        title="Logistic Regression Log Loss vs Iteration",
+        train_label="Train Log Loss",
+        val_label="Validation Log Loss",
+    )
 
     return model, metrics
 
