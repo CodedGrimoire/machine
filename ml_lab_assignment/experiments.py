@@ -1,5 +1,7 @@
 """Experiment helpers for model training, evaluation, and plotting."""
 
+from sklearn.naive_bayes import GaussianNB
+
 from metrics_utils import evaluate_classification
 from plot_utils import plot_single_curve, plot_two_curves
 from perceptron_model import PerceptronFromScratch
@@ -114,3 +116,17 @@ def run_logistic_regression_experiment(
         )
 
     return model, metrics
+
+
+def run_naive_bayes_experiment(X_train, X_val, y_train, y_val):
+    """Train and evaluate Gaussian Naive Bayes on validation data."""
+    model = GaussianNB()
+    model.fit(X_train, y_train)
+
+    y_val_pred = model.predict(X_val).astype(int)
+    y_val_probs = model.predict_proba(X_val)[:, 1]
+
+    metrics = evaluate_classification(y_val, y_val_pred)
+    _print_metrics("Gaussian Naive Bayes", metrics)
+
+    return model, metrics, y_val_probs
