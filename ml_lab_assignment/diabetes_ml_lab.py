@@ -123,9 +123,23 @@ def _write_summary_artifacts(summary_metrics):
                 f"{r['recall']:.4f},{r['f1']:.4f}\n"
             )
 
-    marker = "## Results From Python Script Run\n"
+    graph_marker = "## Graphs From Python Script Run\n"
+    graph_lines = [
+        graph_marker,
+        "These images are written by running `python ml_lab_assignment/diabetes_ml_lab.py`.\n",
+        "\n",
+        "![Perceptron Misclassification](outputs/perceptron_misclassification_vs_iteration.png)\n",
+        "\n",
+        "![Logistic Regression Misclassification](outputs/logistic_regression_misclassification_vs_iteration.png)\n",
+        "\n",
+        "![Logistic Regression Log Loss](outputs/logistic_regression_log_loss_vs_iteration.png)\n",
+        "\n",
+        "![Model Performance Comparison](outputs/model_performance_comparison.png)\n",
+    ]
+
+    result_marker = "## Results From Python Script Run\n"
     md_lines = [
-        marker,
+        result_marker,
         "This table is auto-updated when you run `python ml_lab_assignment/diabetes_ml_lab.py`.\n",
         "\n",
         "| Model | Accuracy | Precision | Recall | F1 |\n",
@@ -146,22 +160,32 @@ def _write_summary_artifacts(summary_metrics):
     except json.JSONDecodeError:
         return
 
+    graph_cell = {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": graph_lines,
+    }
     replacement_cell = {
         "cell_type": "markdown",
         "metadata": {},
         "source": md_lines,
     }
 
+    graph_replaced = False
     replaced = False
     for i, cell in enumerate(notebook.get("cells", [])):
         if cell.get("cell_type") != "markdown":
             continue
         source = "".join(cell.get("source", []))
-        if source.startswith(marker):
+        if source.startswith(graph_marker):
+            notebook["cells"][i] = graph_cell
+            graph_replaced = True
+        if source.startswith(result_marker):
             notebook["cells"][i] = replacement_cell
             replaced = True
-            break
 
+    if not graph_replaced:
+        notebook.setdefault("cells", []).append(graph_cell)
     if not replaced:
         notebook.setdefault("cells", []).append(replacement_cell)
 
