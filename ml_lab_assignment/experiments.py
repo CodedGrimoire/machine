@@ -76,9 +76,32 @@ def run_perceptron_experiment(
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
-    y_val_pred = model.predict(X_val)
-    metrics = evaluate_classification(y_val, y_val_pred)
-    _print_metrics("Perceptron (From Scratch)", metrics)
+    val_scores = model.decision_function(X_val)
+    candidate_thresholds = [0.0, -0.1, -0.2, -0.3, -0.4, -0.5, -1.0]
+    chosen_threshold = None
+    metrics = None
+
+    for threshold in candidate_thresholds:
+        y_val_pred = (val_scores >= threshold).astype(int)
+        current_metrics = evaluate_classification(y_val, y_val_pred)
+        if current_metrics["recall"] >= 0.70:
+            chosen_threshold = threshold
+            metrics = current_metrics
+            break
+        if metrics is None or current_metrics["recall"] > metrics["recall"]:
+            chosen_threshold = threshold
+            metrics = current_metrics
+
+    print("\n" + "=" * 76)
+    print("Perceptron (From Scratch) - Validation Results")
+    print("=" * 76)
+    print(f"Chosen Threshold: {chosen_threshold:.2f}")
+    print("Confusion Matrix:")
+    print(metrics["confusion_matrix"])
+    print(f"Accuracy : {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall   : {metrics['recall']:.4f}")
+    print(f"F1 Score : {metrics['f1_score']:.4f}")
 
     _plot_history(
         train_values=model.train_misclassification_history_,
