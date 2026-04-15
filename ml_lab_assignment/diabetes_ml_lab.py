@@ -1,5 +1,8 @@
 """Main script for binary classification ML lab on diabetes dataset."""
 
+import json
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -82,7 +85,87 @@ def _plot_comparison_chart(summary_metrics):
             )
 
     fig.tight_layout()
+    outputs_dir = Path(__file__).resolve().parent / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(outputs_dir / "model_performance_comparison.png", dpi=160, bbox_inches="tight")
     plt.show()
+
+
+def _write_summary_artifacts(summary_metrics):
+    """Persist final summary to outputs/ and sync a markdown table in notebook."""
+    outputs_dir = Path(__file__).resolve().parent / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    model_order = [
+        "Perceptron (From Scratch)",
+        "Logistic Regression (From Scratch)",
+        "Gaussian Naive Bayes",
+    ]
+    rows = []
+    for model_name in model_order:
+        m = summary_metrics[model_name]
+        rows.append(
+            {
+                "model": model_name,
+                "accuracy": float(m["accuracy"]),
+                "precision": float(m["precision"]),
+                "recall": float(m["recall"]),
+                "f1": float(m["f1_score"]),
+            }
+        )
+
+    csv_path = outputs_dir / "final_validation_metrics.csv"
+    with csv_path.open("w", encoding="utf-8") as f:
+        f.write("Model,Accuracy,Precision,Recall,F1\n")
+        for r in rows:
+            f.write(
+                f"{r['model']},{r['accuracy']:.4f},{r['precision']:.4f},"
+                f"{r['recall']:.4f},{r['f1']:.4f}\n"
+            )
+
+    marker = "## Results From Python Script Run\n"
+    md_lines = [
+        marker,
+        "This table is auto-updated when you run `python ml_lab_assignment/diabetes_ml_lab.py`.\n",
+        "\n",
+        "| Model | Accuracy | Precision | Recall | F1 |\n",
+        "|---|---:|---:|---:|---:|\n",
+    ]
+    for r in rows:
+        md_lines.append(
+            f"| {r['model']} | {r['accuracy']:.4f} | {r['precision']:.4f} | "
+            f"{r['recall']:.4f} | {r['f1']:.4f} |\n"
+        )
+
+    notebook_path = Path(__file__).resolve().parent / "07_tazkiamalik.ipynb"
+    if not notebook_path.exists():
+        return
+
+    try:
+        notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+
+    replacement_cell = {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": md_lines,
+    }
+
+    replaced = False
+    for i, cell in enumerate(notebook.get("cells", [])):
+        if cell.get("cell_type") != "markdown":
+            continue
+        source = "".join(cell.get("source", []))
+        if source.startswith(marker):
+            notebook["cells"][i] = replacement_cell
+            replaced = True
+            break
+
+    if not replaced:
+        notebook.setdefault("cells", []).append(replacement_cell)
+
+    notebook_path.write_text(json.dumps(notebook, indent=1), encoding="utf-8")
 
 
 def run_all_models(
@@ -97,7 +180,7 @@ def run_all_models(
     if n_iters is None:
         n_iters = {
             "perceptron": 1000,
-            "logistic_regression": 10000,
+            "logistic_regression": 5000,
         }
 
     # 1. Split into features and target
@@ -158,6 +241,7 @@ def run_all_models(
     print("\n[4/4] Building final comparison summary...")
     _print_comparison_table(summary_metrics)
     _plot_comparison_chart(summary_metrics)
+    _write_summary_artifacts(summary_metrics)
 
     return {
         "summary_metrics": summary_metrics,
@@ -188,7 +272,7 @@ def main():
     learning_rate = 0.01
     n_iters = {
         "perceptron": 1000,
-        "logistic_regression": 50000,
+        "logistic_regression": 5000,
     }
 
     results = run_all_models(

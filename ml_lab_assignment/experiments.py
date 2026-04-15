@@ -1,17 +1,20 @@
 """Experiment helpers for model training, evaluation, and plotting."""
 
+import numpy as np
 from sklearn.naive_bayes import GaussianNB
 
-from metrics_utils import evaluate_classification
+from metrics_utils import select_best_threshold_by_accuracy
 from plot_utils import plot_single_curve, plot_two_curves
 from perceptron_model import PerceptronFromScratch
 from logistic_regression_model import LogisticRegressionFromScratch
 
 
-def _print_metrics(title, metrics):
+def _print_metrics(title, metrics, threshold=None):
     print("\n" + "=" * 76)
     print(f"{title} - Validation Results")
     print("=" * 76)
+    if threshold is not None:
+        print(f"Chosen Threshold: {threshold:.2f}")
     print("Confusion Matrix:")
     print(metrics["confusion_matrix"])
     print(f"Accuracy : {metrics['accuracy']:.4f}")
@@ -41,24 +44,6 @@ def _plot_history(train_values, val_values, xlabel, ylabel, title, train_label, 
         )
 
 
-def _select_naive_bayes_threshold(y_true, y_pred_probs, thresholds, recall_target=0.70):
-    """Select threshold: first meeting recall target, else highest recall."""
-    best_metrics = None
-    best_threshold = None
-
-    for threshold in thresholds:
-        y_pred = (y_pred_probs >= threshold).astype(int)
-        metrics = evaluate_classification(y_true, y_pred)
-        if metrics["recall"] >= recall_target:
-            return threshold, metrics
-
-        if best_metrics is None or metrics["recall"] > best_metrics["recall"]:
-            best_metrics = metrics
-            best_threshold = threshold
-
-    return best_threshold, best_metrics
-
-
 def run_perceptron_experiment(
     X_train,
     X_val,
@@ -76,18 +61,16 @@ def run_perceptron_experiment(
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
-    y_val_pred = model.predict(X_val)
-    metrics = evaluate_classification(y_val, y_val_pred)
+    val_scores = model.decision_function(X_val)
+    candidate_thresholds = np.linspace(-0.5, 0.5, 41)
+    tuned_metrics = select_best_threshold_by_accuracy(
+        y_true=y_val,
+        scores_or_probs=val_scores,
+        candidate_thresholds=candidate_thresholds,
+    )
+    threshold = tuned_metrics.pop("threshold")
 
-    print("\n" + "=" * 76)
-    print("Perceptron (From Scratch) - Validation Results")
-    print("=" * 76)
-    print("Confusion Matrix:")
-    print(metrics["confusion_matrix"])
-    print(f"Accuracy : {metrics['accuracy']:.4f}")
-    print(f"Precision: {metrics['precision']:.4f}")
-    print(f"Recall   : {metrics['recall']:.4f}")
-    print(f"F1 Score : {metrics['f1_score']:.4f}")
+    _print_metrics("Perceptron (From Scratch)", tuned_metrics, threshold=threshold)
 
     _plot_history(
         train_values=model.train_misclassification_history_,
@@ -99,7 +82,7 @@ def run_perceptron_experiment(
         val_label="Validation Misclassification",
     )
 
-    return model, metrics
+    return model, tuned_metrics
 
 
 def run_logistic_regression_experiment(
@@ -120,18 +103,15 @@ def run_logistic_regression_experiment(
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
     y_val_probs = model.predict_proba(X_val)
-    y_val_pred = (y_val_probs >= 0.5).astype(int)
-    metrics = evaluate_classification(y_val, y_val_pred)
+    candidate_thresholds = np.linspace(0.30, 0.70, 41)
+    tuned_metrics = select_best_threshold_by_accuracy(
+        y_true=y_val,
+        scores_or_probs=y_val_probs,
+        candidate_thresholds=candidate_thresholds,
+    )
+    threshold = tuned_metrics.pop("threshold")
 
-    print("\n" + "=" * 76)
-    print("Logistic Regression (From Scratch) - Validation Results")
-    print("=" * 76)
-    print("Confusion Matrix:")
-    print(metrics["confusion_matrix"])
-    print(f"Accuracy : {metrics['accuracy']:.4f}")
-    print(f"Precision: {metrics['precision']:.4f}")
-    print(f"Recall   : {metrics['recall']:.4f}")
-    print(f"F1 Score : {metrics['f1_score']:.4f}")
+    _print_metrics("Logistic Regression (From Scratch)", tuned_metrics, threshold=threshold)
 
     _plot_history(
         train_values=model.train_misclassification_history_,
@@ -153,7 +133,7 @@ def run_logistic_regression_experiment(
         val_label="Validation Log Loss",
     )
 
-    return model, metrics
+    return model, tuned_metrics
 
 
 def run_naive_bayes_experiment(X_train, X_val, y_train, y_val):
@@ -162,23 +142,14 @@ def run_naive_bayes_experiment(X_train, X_val, y_train, y_val):
     model.fit(X_train, y_train)
 
     y_val_probs = model.predict_proba(X_val)[:, 1]
-    candidate_thresholds = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20]
-    chosen_threshold, metrics = _select_naive_bayes_threshold(
+    candidate_thresholds = np.linspace(0.30, 0.70, 41)
+    tuned_metrics = select_best_threshold_by_accuracy(
         y_true=y_val,
-        y_pred_probs=y_val_probs,
-        thresholds=candidate_thresholds,
-        recall_target=0.70,
+        scores_or_probs=y_val_probs,
+        candidate_thresholds=candidate_thresholds,
     )
+    threshold = tuned_metrics.pop("threshold")
 
-    print("\n" + "=" * 76)
-    print("Gaussian Naive Bayes - Validation Results")
-    print("=" * 76)
-    print(f"Chosen Threshold: {chosen_threshold:.2f}")
-    print("Confusion Matrix:")
-    print(metrics["confusion_matrix"])
-    print(f"Accuracy : {metrics['accuracy']:.4f}")
-    print(f"Precision: {metrics['precision']:.4f}")
-    print(f"Recall   : {metrics['recall']:.4f}")
-    print(f"F1 Score : {metrics['f1_score']:.4f}")
+    _print_metrics("Gaussian Naive Bayes", tuned_metrics, threshold=threshold)
 
-    return model, metrics, y_val_probs
+    return model, tuned_metrics, y_val_probs

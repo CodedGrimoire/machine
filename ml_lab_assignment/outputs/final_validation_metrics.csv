@@ -1,0 +1,4 @@
+Model,Accuracy,Precision,Recall,F1
+Perceptron (From Scratch),0.7597,0.6735,0.6111,0.6408
+Logistic Regression (From Scratch),0.7532,0.6290,0.7222,0.6724
+Gaussian Naive Bayes,0.7338,0.6182,0.6296,0.6239
