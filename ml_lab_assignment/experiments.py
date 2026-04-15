@@ -41,6 +41,24 @@ def _plot_history(train_values, val_values, xlabel, ylabel, title, train_label, 
         )
 
 
+def _select_naive_bayes_threshold(y_true, y_pred_probs, thresholds, recall_target=0.70):
+    """Select threshold: first meeting recall target, else highest recall."""
+    best_metrics = None
+    best_threshold = None
+
+    for threshold in thresholds:
+        y_pred = (y_pred_probs >= threshold).astype(int)
+        metrics = evaluate_classification(y_true, y_pred)
+        if metrics["recall"] >= recall_target:
+            return threshold, metrics
+
+        if best_metrics is None or metrics["recall"] > best_metrics["recall"]:
+            best_metrics = metrics
+            best_threshold = threshold
+
+    return best_threshold, best_metrics
+
+
 def run_perceptron_experiment(
     X_train,
     X_val,
@@ -124,10 +142,24 @@ def run_naive_bayes_experiment(X_train, X_val, y_train, y_val):
     model = GaussianNB()
     model.fit(X_train, y_train)
 
-    y_val_pred = model.predict(X_val).astype(int)
     y_val_probs = model.predict_proba(X_val)[:, 1]
+    candidate_thresholds = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20]
+    chosen_threshold, metrics = _select_naive_bayes_threshold(
+        y_true=y_val,
+        y_pred_probs=y_val_probs,
+        thresholds=candidate_thresholds,
+        recall_target=0.70,
+    )
 
-    metrics = evaluate_classification(y_val, y_val_pred)
-    _print_metrics("Gaussian Naive Bayes", metrics)
+    print("\n" + "=" * 76)
+    print("Gaussian Naive Bayes - Validation Results")
+    print("=" * 76)
+    print(f"Chosen Threshold: {chosen_threshold:.2f}")
+    print("Confusion Matrix:")
+    print(metrics["confusion_matrix"])
+    print(f"Accuracy : {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall   : {metrics['recall']:.4f}")
+    print(f"F1 Score : {metrics['f1_score']:.4f}")
 
     return model, metrics, y_val_probs
