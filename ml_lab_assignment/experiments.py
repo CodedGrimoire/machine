@@ -110,9 +110,32 @@ def run_logistic_regression_experiment(
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
-    y_val_pred = model.predict(X_val)
-    metrics = evaluate_classification(y_val, y_val_pred)
-    _print_metrics("Logistic Regression (From Scratch)", metrics)
+    y_val_probs = model.predict_proba(X_val)
+    candidate_thresholds = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20]
+    chosen_threshold = None
+    metrics = None
+
+    for threshold in candidate_thresholds:
+        y_val_pred = (y_val_probs >= threshold).astype(int)
+        current_metrics = evaluate_classification(y_val, y_val_pred)
+        if current_metrics["recall"] >= 0.70:
+            chosen_threshold = threshold
+            metrics = current_metrics
+            break
+        if metrics is None or current_metrics["recall"] > metrics["recall"]:
+            chosen_threshold = threshold
+            metrics = current_metrics
+
+    print("\n" + "=" * 76)
+    print("Logistic Regression (From Scratch) - Validation Results")
+    print("=" * 76)
+    print(f"Chosen Threshold: {chosen_threshold:.2f}")
+    print("Confusion Matrix:")
+    print(metrics["confusion_matrix"])
+    print(f"Accuracy : {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall   : {metrics['recall']:.4f}")
+    print(f"F1 Score : {metrics['f1_score']:.4f}")
 
     _plot_history(
         train_values=model.train_misclassification_history_,
