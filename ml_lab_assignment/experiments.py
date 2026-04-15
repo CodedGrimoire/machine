@@ -59,24 +59,6 @@ def _select_naive_bayes_threshold(y_true, y_pred_probs, thresholds, recall_targe
     return best_threshold, best_metrics
 
 
-def _select_perceptron_threshold(y_true, scores, thresholds):
-    """Select threshold using filtered candidates and F1 maximization."""
-    filtered_candidates = []
-    all_candidates = []
-
-    for threshold in thresholds:
-        y_pred = (scores >= threshold).astype(int)
-        metrics = evaluate_classification(y_true, y_pred)
-        all_candidates.append((threshold, metrics))
-
-        # Filter out obviously degenerate behavior before selecting by F1.
-        if metrics["precision"] >= 0.45 and metrics["accuracy"] >= 0.60:
-            filtered_candidates.append((threshold, metrics))
-
-    candidate_pool = filtered_candidates if filtered_candidates else all_candidates
-    return max(candidate_pool, key=lambda item: item[1]["f1_score"])
-
-
 def run_perceptron_experiment(
     X_train,
     X_val,
@@ -94,18 +76,12 @@ def run_perceptron_experiment(
     )
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
-    val_scores = model.decision_function(X_val)
-    candidate_thresholds = [0.0, -0.05, -0.10, -0.15, -0.20, -0.25]
-    chosen_threshold, metrics = _select_perceptron_threshold(
-        y_true=y_val,
-        scores=val_scores,
-        thresholds=candidate_thresholds,
-    )
+    y_val_pred = model.predict(X_val)
+    metrics = evaluate_classification(y_val, y_val_pred)
 
     print("\n" + "=" * 76)
     print("Perceptron (From Scratch) - Validation Results")
     print("=" * 76)
-    print(f"Chosen Threshold: {chosen_threshold:.2f}")
     print("Confusion Matrix:")
     print(metrics["confusion_matrix"])
     print(f"Accuracy : {metrics['accuracy']:.4f}")
@@ -144,25 +120,12 @@ def run_logistic_regression_experiment(
     model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
     y_val_probs = model.predict_proba(X_val)
-    candidate_thresholds = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20]
-    chosen_threshold = None
-    metrics = None
-
-    for threshold in candidate_thresholds:
-        y_val_pred = (y_val_probs >= threshold).astype(int)
-        current_metrics = evaluate_classification(y_val, y_val_pred)
-        if current_metrics["recall"] >= 0.70:
-            chosen_threshold = threshold
-            metrics = current_metrics
-            break
-        if metrics is None or current_metrics["recall"] > metrics["recall"]:
-            chosen_threshold = threshold
-            metrics = current_metrics
+    y_val_pred = (y_val_probs >= 0.5).astype(int)
+    metrics = evaluate_classification(y_val, y_val_pred)
 
     print("\n" + "=" * 76)
     print("Logistic Regression (From Scratch) - Validation Results")
     print("=" * 76)
-    print(f"Chosen Threshold: {chosen_threshold:.2f}")
     print("Confusion Matrix:")
     print(metrics["confusion_matrix"])
     print(f"Accuracy : {metrics['accuracy']:.4f}")

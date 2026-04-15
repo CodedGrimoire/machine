@@ -17,7 +17,7 @@ def sigmoid(z):
 
 def log_loss_binary(y_true, y_pred_probs):
     """Binary log loss with clipping for numerical stability."""
-    eps = 1e-12
+    eps = 1e-15
     p = np.clip(y_pred_probs, eps, 1.0 - eps)
     return -np.mean(y_true * np.log(p) + (1 - y_true) * np.log(1 - p))
 

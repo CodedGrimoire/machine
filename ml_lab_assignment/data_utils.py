@@ -2,11 +2,13 @@
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 
 def load_diabetes_data():
     """Load the Pima Indians Diabetes dataset as a pandas DataFrame."""
     url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+    local_path = Path(__file__).resolve().parent / "pima-indians-diabetes.data.csv"
     columns = [
         "Pregnancies",
         "Glucose",
@@ -18,7 +20,11 @@ def load_diabetes_data():
         "Age",
         "Outcome",
     ]
-    data = pd.read_csv(url, header=None, names=columns)
+    if local_path.exists():
+        data = pd.read_csv(local_path, header=None, names=columns)
+    else:
+        data = pd.read_csv(url, header=None, names=columns)
+        data.to_csv(local_path, index=False, header=False)
     print(data.head())
     return data
 

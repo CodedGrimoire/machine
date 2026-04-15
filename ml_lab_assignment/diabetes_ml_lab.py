@@ -96,8 +96,8 @@ def run_all_models(
     """Run Perceptron, Logistic Regression, and Naive Bayes with one split."""
     if n_iters is None:
         n_iters = {
-            "perceptron": 100,
-            "logistic_regression": 1000,
+            "perceptron": 1000,
+            "logistic_regression": 50000,
         }
 
     # 1. Split into features and target
@@ -187,8 +187,8 @@ def main():
     random_state = 42
     learning_rate = 0.01
     n_iters = {
-        "perceptron": 100,
-        "logistic_regression": 1000,
+        "perceptron": 1000,
+        "logistic_regression": 50000,
     }
 
     results = run_all_models(
