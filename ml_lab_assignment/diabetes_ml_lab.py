@@ -143,6 +143,116 @@ def plot_two_curves(train_values, val_values, xlabel, ylabel, title, label1, lab
 
 
 # =========================
+# Perceptron (From Scratch)
+# =========================
+class PerceptronFromScratch:
+    """Binary Perceptron classifier implemented from scratch."""
+
+    def __init__(self, learning_rate=0.01, n_iters=1000, random_state=42):
+        self.learning_rate = learning_rate
+        self.n_iters = n_iters
+        self.random_state = random_state
+        self.weights_ = None
+        self.bias_ = None
+        self.train_misclassification_history_ = []
+        self.val_misclassification_history_ = []
+
+    def decision_function(self, X):
+        """Return raw linear scores before thresholding."""
+        return np.dot(X, self.weights_) + self.bias_
+
+    def predict(self, X):
+        """Predict binary labels (0/1)."""
+        scores = self.decision_function(X)
+        return (scores >= 0.0).astype(int)
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None):
+        """Train Perceptron and store misclassification history per iteration."""
+        n_samples, n_features = X_train.shape
+        rng = np.random.default_rng(self.random_state)
+
+        self.weights_ = rng.normal(loc=0.0, scale=0.01, size=n_features)
+        self.bias_ = 0.0
+        self.train_misclassification_history_ = []
+        self.val_misclassification_history_ = []
+
+        # Convert labels from {0,1} to {-1,+1} for perceptron updates.
+        y_train_pm = np.where(y_train == 1, 1, -1)
+
+        for _ in range(self.n_iters):
+            for i in range(n_samples):
+                x_i = X_train[i]
+                y_i = y_train_pm[i]
+
+                score = np.dot(x_i, self.weights_) + self.bias_
+                y_hat = 1 if score >= 0.0 else -1
+
+                if y_hat != y_i:
+                    update = self.learning_rate * y_i
+                    self.weights_ += update * x_i
+                    self.bias_ += update
+
+            train_preds = self.predict(X_train)
+            train_error = np.mean(train_preds != y_train)
+            self.train_misclassification_history_.append(train_error)
+
+            if X_val is not None and y_val is not None:
+                val_preds = self.predict(X_val)
+                val_error = np.mean(val_preds != y_val)
+                self.val_misclassification_history_.append(val_error)
+
+        return self
+
+
+def run_perceptron_experiment(
+    X_train,
+    X_val,
+    y_train,
+    y_val,
+    learning_rate,
+    n_iters,
+):
+    """Train, evaluate, print metrics, and plot Perceptron misclassification curves."""
+    perceptron_model = PerceptronFromScratch(
+        learning_rate=learning_rate,
+        n_iters=n_iters,
+        random_state=42,
+    )
+    perceptron_model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
+
+    y_val_pred = perceptron_model.predict(X_val)
+    metrics = evaluate_classification(y_val, y_val_pred)
+
+    print("\nPerceptron (From Scratch) - Validation Metrics")
+    print("Confusion Matrix:")
+    print(metrics["confusion_matrix"])
+    print(f"Accuracy : {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall   : {metrics['recall']:.4f}")
+    print(f"F1 Score : {metrics['f1_score']:.4f}")
+
+    if len(perceptron_model.val_misclassification_history_) > 0:
+        plot_two_curves(
+            perceptron_model.train_misclassification_history_,
+            perceptron_model.val_misclassification_history_,
+            xlabel="Iteration",
+            ylabel="Misclassification Rate",
+            title="Perceptron Misclassification vs Iteration",
+            label1="Train Misclassification",
+            label2="Validation Misclassification",
+        )
+    else:
+        plot_single_curve(
+            perceptron_model.train_misclassification_history_,
+            xlabel="Iteration",
+            ylabel="Misclassification Rate",
+            title="Perceptron Train Misclassification vs Iteration",
+        )
+
+    return perceptron_model, metrics
+
+
+# =========================
 # Main Execution Skeleton
 # =========================
 def main():
@@ -168,10 +278,15 @@ def main():
     X_train_bias = add_bias_column(X_train_std)
     X_val_bias = add_bias_column(X_val_std)
 
-    # 6. TODO: Train and evaluate Perceptron from scratch
-    # perceptron_model = ...
-    # perceptron_val_preds = ...
-    # perceptron_metrics = evaluate_classification(y_val, perceptron_val_preds)
+    # 6. Train and evaluate Perceptron from scratch
+    perceptron_model, perceptron_metrics = run_perceptron_experiment(
+        X_train=X_train_std,
+        X_val=X_val_std,
+        y_train=y_train,
+        y_val=y_val,
+        learning_rate=0.01,
+        n_iters=100,
+    )
 
     # 7. TODO: Train and evaluate Logistic Regression from scratch
     # logistic_model = ...
@@ -188,7 +303,15 @@ def main():
     # 9. TODO: Plot learning curves / error curves when model training histories are available
 
     # Keep these variables referenced to avoid accidental removal during refactors.
-    _ = (X_train_bias, X_val_bias, y_train, y_val, GaussianNB)
+    _ = (
+        X_train_bias,
+        X_val_bias,
+        y_train,
+        y_val,
+        GaussianNB,
+        perceptron_model,
+        perceptron_metrics,
+    )
 
 
 if __name__ == "__main__":
