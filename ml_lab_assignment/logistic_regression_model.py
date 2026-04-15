@@ -8,7 +8,7 @@ from metrics_utils import sigmoid, log_loss_binary, misclassification_error
 class LogisticRegressionFromScratch:
     """Binary Logistic Regression trained with vectorized gradient descent."""
 
-    def __init__(self, learning_rate=0.01, n_iters=1000, random_state=42):
+    def __init__(self, learning_rate=0.08, n_iters=10000, random_state=42):
         self.learning_rate = learning_rate
         self.n_iters = n_iters
         self.random_state = random_state

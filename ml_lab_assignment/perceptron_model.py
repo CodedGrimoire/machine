@@ -6,7 +6,7 @@ import numpy as np
 class PerceptronFromScratch:
     """Binary Perceptron classifier implemented from scratch."""
 
-    def __init__(self, learning_rate=0.01, n_iters=1000, random_state=42):
+    def __init__(self, learning_rate=0.08, n_iters=10000, random_state=42):
         self.learning_rate = learning_rate
         self.n_iters = n_iters
         self.random_state = random_state
